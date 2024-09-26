@@ -1,0 +1,68 @@
+package br.unisinos;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.math.BigInteger;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class Servidor {
+
+    private static final int p = 13;
+    private static final int q = 29;
+    private static final int n = p * q; // 377
+    private static final int e = 5; 
+    private static final int d = 269;
+
+    public static void main(String[] args) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(23456);
+            System.out.println("Servidor iniciado. Aguardando conexões...");
+
+            Socket cliente1 = serverSocket.accept();
+            System.out.println("Cliente 1 conectado.");
+            Socket cliente2 = serverSocket.accept();
+            System.out.println("Cliente 2 conectado.");
+
+            BufferedReader inCliente1 = new BufferedReader(new InputStreamReader(cliente1.getInputStream()));
+            PrintWriter outCliente2 = new PrintWriter(cliente2.getOutputStream(), true);
+
+            String mensagem;
+            while (true) {
+                // Recebe a mensagem do Cliente 1
+                mensagem = inCliente1.readLine();
+                if (mensagem == null) break; // Se cliente 1 desconectar
+
+                System.out.println("Mensagem recebida do Cliente 1: " + mensagem);
+
+                // Converte a mensagem para ASCII e criptografa usando RSA
+                String mensagemCriptografada = criptografarRSA(mensagem);
+                System.out.println("Mensagem criptografada: " + mensagemCriptografada);
+
+                // Envia a mensagem criptografada para o Cliente 2
+                outCliente2.println(mensagemCriptografada);
+                System.out.println("Mensagem enviada ao Cliente 2.");
+            }
+
+            cliente1.close();
+            cliente2.close();
+            serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String criptografarRSA(String mensagem) {
+        StringBuilder resultado = new StringBuilder();
+        for (int i = 0; i < mensagem.length(); i++) {
+            char c = mensagem.charAt(i);
+            int ascii = (int) c;
+            BigInteger mensagemBigInt = BigInteger.valueOf(ascii);
+            BigInteger criptografado = mensagemBigInt.pow(e).mod(BigInteger.valueOf(n));
+            resultado.append(criptografado.toString()).append(" ");
+        }
+        return resultado.toString().trim();
+    }
+}
