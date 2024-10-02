@@ -10,42 +10,67 @@ import java.net.Socket;
 
 public class Servidor {
 
+    // Define os valores das chaves RSA públicas e privadas do servidor
     private static final int p = 13;
     private static final int q = 29;
-    private static final int n = p * q; // 377
-    private static final int e = 5; 
-    private static final int d = 269;
+    private static final int n = p * q; // 377, usado no cálculo das operações RSA
+    private static final int e = 5;     // Exponente público
+    private static final int d = 269;   // Exponente privado (apenas usado para testes, pois o servidor não descriptografa)
 
     public static void main(String[] args) {
         try {
+            // Cria o servidor na porta 23456
             ServerSocket serverSocket = new ServerSocket(23456);
             System.out.println("Servidor iniciado. Aguardando conexões...");
 
+            // Aceita a conexão do Cliente 1 e do Cliente 2
             Socket cliente1 = serverSocket.accept();
             System.out.println("Cliente 1 conectado.");
             Socket cliente2 = serverSocket.accept();
             System.out.println("Cliente 2 conectado.");
 
+            // Cria streams para comunicação com os clientes
             BufferedReader inCliente1 = new BufferedReader(new InputStreamReader(cliente1.getInputStream()));
+            BufferedReader inCliente2 = new BufferedReader(new InputStreamReader(cliente2.getInputStream()));
+            PrintWriter outCliente1 = new PrintWriter(cliente1.getOutputStream(), true);
             PrintWriter outCliente2 = new PrintWriter(cliente2.getOutputStream(), true);
 
-            String mensagem;
+            String mensagemCliente1;
+            String mensagemCliente2;
+
             while (true) {
-                // Recebe a mensagem do Cliente 1
-                mensagem = inCliente1.readLine();
-                if (mensagem == null) break; // Se cliente 1 desconectar
+                // Verifica se há mensagens do Cliente 1
+                if (inCliente1.ready()) {
+                    mensagemCliente1 = inCliente1.readLine();
+                    if (mensagemCliente1 == null) break; // Se cliente 1 desconectar, encerra o loop
+                    System.out.println("Mensagem recebida do Cliente 1: " + mensagemCliente1);
 
-                System.out.println("Mensagem recebida do Cliente 1: " + mensagem);
+                    // Criptografa a mensagem para enviar ao Cliente 2
+                    String mensagemCriptografada = criptografarMensagem(mensagemCliente1, true); // true = Para Cliente 2
+                    System.out.println("Mensagem criptografada do Cliente 1: " + mensagemCriptografada);
 
-                // Converte a mensagem para ASCII e criptografa usando RSA
-                String mensagemCriptografada = criptografarRSA(mensagem);
-                System.out.println("Mensagem criptografada: " + mensagemCriptografada);
+                    // Envia a mensagem criptografada para o Cliente 2
+                    outCliente2.println(mensagemCriptografada);
+                    System.out.println("Mensagem enviada ao Cliente 2.");
+                }
 
-                // Envia a mensagem criptografada para o Cliente 2
-                outCliente2.println(mensagemCriptografada);
-                System.out.println("Mensagem enviada ao Cliente 2.");
+                // Verifica se há mensagens do Cliente 2
+                if (inCliente2.ready()) {
+                    mensagemCliente2 = inCliente2.readLine();
+                    if (mensagemCliente2 == null) break; // Se cliente 2 desconectar, encerra o loop
+                    System.out.println("Mensagem recebida do Cliente 2: " + mensagemCliente2);
+
+                    // Criptografa a mensagem para enviar ao Cliente 1
+                    String mensagemCriptografada = criptografarMensagem(mensagemCliente2, false); // false = Para Cliente 1
+                    System.out.println("Mensagem criptografada do Cliente 2: " + mensagemCriptografada);
+
+                    // Envia a mensagem criptografada para o Cliente 1
+                    outCliente1.println(mensagemCriptografada);
+                    System.out.println("Mensagem enviada ao Cliente 1.");
+                }
             }
 
+            // Fecha conexões e servidor
             cliente1.close();
             cliente2.close();
             serverSocket.close();
@@ -54,15 +79,24 @@ public class Servidor {
         }
     }
 
-    public static String criptografarRSA(String mensagem) {
+    // Método que criptografa a mensagem recebida
+    public static String criptografarMensagem(String mensagem, boolean paraCliente2) {
         StringBuilder resultado = new StringBuilder();
+
+        // Define as chaves de acordo com o cliente de destino
+        int chaveE = paraCliente2 ? 5 : 7;        // 'e' do Cliente 2 (5) ou Cliente 1 (7)
+        int chaveN = paraCliente2 ? 377 : 527;    // 'n' do Cliente 2 (377) ou Cliente 1 (527)
+
+        // Para cada caractere na mensagem, aplica a criptografia RSA
         for (int i = 0; i < mensagem.length(); i++) {
-            char c = mensagem.charAt(i);
-            int ascii = (int) c;
+            char c = mensagem.charAt(i);          // Pega o caractere atual
+            int ascii = (int) c;                  // Converte o caractere para o código ASCII
             BigInteger mensagemBigInt = BigInteger.valueOf(ascii);
-            BigInteger criptografado = mensagemBigInt.pow(e).mod(BigInteger.valueOf(n));
+            BigInteger criptografado = mensagemBigInt.pow(chaveE).mod(BigInteger.valueOf(chaveN));
             resultado.append(criptografado.toString()).append(" ");
         }
+2
+        // Retorna a mensagem criptografada como uma string de números separados por espaços
         return resultado.toString().trim();
     }
 }
