@@ -4,29 +4,79 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.net.Socket;
 
 public class Cliente {
 
+    private static final int n = 17 * 31; // 527, valor de 'n' para o Cliente 1
+
     public static void main(String[] args) {
         try {
+            // Conecta ao servidor na porta 23456
             Socket socket = new Socket("localhost", 23456);
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             BufferedReader teclado = new BufferedReader(new InputStreamReader(System.in));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-            String mensagem;
+            String escolha;
+
             while (true) {
-                System.out.println("Digite a mensagem para enviar ao servidor (ou 'sair' para encerrar):");
-                mensagem = teclado.readLine();
-                if (mensagem.equalsIgnoreCase("sair")) {
-                    break; // Encerra se o usuário digitar 'sair'
+                // Exibe um menu de opções
+                System.out.println("\nEscolha uma opção:");
+                System.out.println("1. Enviar uma nova mensagem para o servidor");
+                System.out.println("2. Descriptografar a mensagem recebida do servidor");
+                System.out.println("3. Sair");
+                escolha = teclado.readLine();
+
+                if (escolha.equals("1")) {
+                    // Enviar uma nova mensagem para o servidor
+                    System.out.println("Digite a mensagem para enviar ao servidor:");
+                    String mensagem = teclado.readLine();
+                    out.println(mensagem);
+
+                } else if (escolha.equals("2")) {
+                    // Descriptografar a mensagem recebida do servidor
+                    String mensagemCriptografada = in.readLine();
+                    if (mensagemCriptografada == null) {
+                        System.out.println("Nenhuma mensagem criptografada recebida.");
+                    } else {
+                        System.out.println("Mensagem criptografada recebida: " + mensagemCriptografada);
+
+                        // Solicita a chave privada (d) do cliente para descriptografar
+                        System.out.println("Insira sua chave privada (valor de 'd') para descriptografar:");
+                        String chavePrivadaStr = teclado.readLine();
+                        int d = Integer.parseInt(chavePrivadaStr);
+
+                        // Descriptografa a mensagem recebida
+                        String mensagemDescriptografada = descriptografarRSA(mensagemCriptografada, d);
+                        System.out.println("Mensagem descriptografada: " + mensagemDescriptografada);
+                    }
+
+                } else if (escolha.equals("3")) {
+                    // Encerra o cliente
+                    System.out.println("Encerrando o cliente.");
+                    break;
+                } else {
+                    System.out.println("Opção inválida. Tente novamente.");
                 }
-                out.println(mensagem);
             }
 
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // Método que descriptografa a mensagem recebida usando a chave privada
+    public static String descriptografarRSA(String mensagemCriptografada, int d) {
+        StringBuilder resultado = new StringBuilder();
+        String[] numerosCriptografados = mensagemCriptografada.split(" ");
+        for (String numeroStr : numerosCriptografados) {
+            BigInteger criptografado = new BigInteger(numeroStr);
+            BigInteger descriptografado = criptografado.pow(d).mod(BigInteger.valueOf(n));
+            resultado.append((char) descriptografado.intValue());
+        }
+        return resultado.toString();
     }
 }
