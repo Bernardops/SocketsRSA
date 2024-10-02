@@ -3,51 +3,81 @@ package br.unisinos;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.Socket;
 
 public class Cliente2 {
 
-    private static final int n = 13 * 29; // 377
+    private static final int n = 13 * 29; // 377, valor de 'n' para o Cliente 2
 
     public static void main(String[] args) {
         try {
+            // Conecta ao servidor na porta 23456
             Socket socket = new Socket("localhost", 23456);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            BufferedReader teclado = new BufferedReader(new InputStreamReader(System.in));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Recebe dados do servidor
+            BufferedReader teclado = new BufferedReader(new InputStreamReader(System.in));          // Lê entrada do usuário
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);                     // Envia dados ao servidor
 
-            String mensagemCriptografada;
+            String escolha; // Variável para armazenar a escolha do usuário no menu
+
             while (true) {
-                // Recebe a mensagem criptografada do servidor
-                mensagemCriptografada = in.readLine();
-                if (mensagemCriptografada == null) break; // Se o servidor fechar a conexão
+                // Exibe um menu de opções para o usuário
+                System.out.println("\nEscolha uma opção:");
+                System.out.println("1. Enviar uma nova mensagem para o servidor");
+                System.out.println("2. Descriptografar a mensagem recebida");
+                System.out.println("3. Sair");
+                escolha = teclado.readLine(); // Lê a escolha do usuário
 
-                System.out.println("Mensagem criptografada recebida: " + mensagemCriptografada);
+                if (escolha.equals("1")) {
+                    // Enviar uma nova mensagem para o servidor
+                    System.out.println("Digite a mensagem para enviar ao servidor:");
+                    String mensagem = teclado.readLine(); // Lê a mensagem digitada pelo usuário
+                    out.println(mensagem);                // Envia a mensagem ao servidor
 
-                // Solicita a chave privada (d) do usuário
-                System.out.println("Insira sua chave privada (valor de 'd') para descriptografar:");
-                String chavePrivadaStr = teclado.readLine();
-                int d = Integer.parseInt(chavePrivadaStr);
+                } else if (escolha.equals("2")) {
+                    // Descriptografar a mensagem recebida do servidor
+                    String mensagemCriptografada = in.readLine(); // Recebe a mensagem criptografada do servidor
+                    if (mensagemCriptografada == null) {
+                        System.out.println("Nenhuma mensagem criptografada recebida."); // Caso não haja mensagem
+                    } else {
+                        System.out.println("Mensagem criptografada recebida: " + mensagemCriptografada);
 
-                // Descriptografa a mensagem
-                String mensagemDescriptografada = descriptografarRSA(mensagemCriptografada, d);
-                System.out.println("Mensagem descriptografada: " + mensagemDescriptografada);
+                        // Solicita que o usuário insira sua chave privada 'd' para descriptografar
+                        System.out.println("Insira sua chave privada (valor de 'd') para descriptografar:");
+                        String chavePrivadaStr = teclado.readLine();
+                        int d = Integer.parseInt(chavePrivadaStr); // Converte a chave privada inserida para um número inteiro
+
+                        // Descriptografa a mensagem recebida
+                        String mensagemDescriptografada = descriptografarRSA(mensagemCriptografada, d);
+                        System.out.println("Mensagem descriptografada: " + mensagemDescriptografada); // Exibe a mensagem descriptografada
+                    }
+                } else if (escolha.equals("3")) {
+                    // Encerra o cliente
+                    System.out.println("Encerrando o cliente.");
+                    break; // Sai do loop e encerra o programa
+                } else {
+                    // Caso o usuário escolha uma opção inválida
+                    System.out.println("Opção inválida. Tente novamente.");
+                }
             }
 
-            socket.close();
+            socket.close(); // Fecha a conexão com o servidor
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Mostra o erro, caso ocorra uma exceção de entrada/saída
         }
     }
 
+    // Método que descriptografa a mensagem recebida usando a chave privada 'd'
     public static String descriptografarRSA(String mensagemCriptografada, int d) {
-        StringBuilder resultado = new StringBuilder();
-        String[] numerosCriptografados = mensagemCriptografada.split(" ");
+        StringBuilder resultado = new StringBuilder(); // StringBuilder para armazenar a mensagem descriptografada
+        String[] numerosCriptografados = mensagemCriptografada.split(" "); // Divide a mensagem criptografada em partes (números)
         for (String numeroStr : numerosCriptografados) {
-            BigInteger criptografado = new BigInteger(numeroStr);
-            BigInteger descriptografado = criptografado.pow(d).mod(BigInteger.valueOf(n));
-            resultado.append((char) descriptografado.intValue());
+            BigInteger criptografado = new BigInteger(numeroStr); // Converte o número criptografado em BigInteger
+            BigInteger descriptografado = criptografado.pow(d).mod(BigInteger.valueOf(n)); // Aplica o algoritmo RSA de descriptografia
+            resultado.append((char) descriptografado.intValue()); // Converte o número descriptografado em caractere e adiciona ao resultado
         }
-        return resultado.toString();
+        return resultado.toString(); // Retorna a mensagem descriptografada
     }
 }
+
